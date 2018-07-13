@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="60 seconds" debug="true">
+
+    <property name="APP_Name" value="nms" />
+    <!-- 日志文件存储路径 -->
+    <property name="LOG_HOME" value="C:/logs" />
+    <property name="APP_PATH" value="nms"/>
+
+    <contextName>${APP_Name}</contextName>
+
+    <!--控制台输出 >=INFO -->
+    <appender name="STDOUT_INFO" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder  class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%red(%d{yyyy-MM-dd HH:mm:ss.SSS}) %highlight(%-5level) %boldMagenta(%logger{36}) -%cyan(%msg%n)</pattern>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>info</level>
+        </filter>
+    </appender>
+
+    <!--控制台输出 >=DEBUG -->
+    <appender name="STDOUT_DEBUG" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder  class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%red(%d{yyyy-MM-dd HH:mm:ss.SSS}) %green([%thread]) %highlight(%-5level) %boldMagenta(%logger{36}) -%cyan(%msg%n)</pattern>
+        </encoder>
+    </appender>
+
+    <!--日志写入到文件-->
+    <!--<appender name="FILE" class="ch.qos.logback.core.FileAppender">-->
+        <!--<file>${LOG_HOME}/${APP_PATH}/logfile.log</file>-->
+        <!--<append>true</append>-->
+        <!--<encoder>-->
+            <!--<pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>-->
+        <!--</encoder>-->
+    <!--</appender>-->
+
+    <!-- 日志文件/每天 -->
+    <!--INFO_DAY 每天生成一个日志文件INFO-->
+    <appender name="INFO_DAY" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!--未到次日0:00临时日志文件名-->
+        <file>${LOG_HOME}/${APP_PATH}/info_days/log_info_tmp.log</file>
+        <append>true</append>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!--每天0:00日志文件输出的文件名-->
+            <fileNamePattern>${LOG_HOME}/${APP_PATH}/info_days/%d{yyyy/MM, aux}/%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <!--单个日志文件不得超过10MB-->
+            <maxFileSize>10MB</maxFileSize>
+            <!--日志文件保留个数 180天 -->
+            <maxHistory>180</maxHistory>
+            <!--总的日志文件不得超过5G-->
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{35} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>INFO</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+    </appender>
+
+    <appender name="REQUEST_INFO_DAY" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!--未到次日0:00临时日志文件名-->
+        <file>${LOG_HOME}/${APP_PATH}/request_info_days/request-tmp.log</file>
+        <append>true</append>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!--每天0:00日志文件输出的文件名-->
+            <fileNamePattern>${LOG_HOME}/${APP_PATH}/request_info_days/%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>90</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{35} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>INFO</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+    </appender>
+
+    <!--ERROR-->
+    <appender name="ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_HOME}/${APP_PATH}/error/log_error.log</file>
+        <append>true</append>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/${APP_PATH}/error/error-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>360</maxHistory>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+    </appender>
+
+    <!-- 异步日志配置 -->
+    <appender name="INFO_DAY_ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+        <discardingThreshold>0</discardingThreshold>
+        <queueSize>256</queueSize>
+        <appender-ref ref="INFO_DAY" />
+    </appender>
+    <appender name="REQUEST_INFO_DAY_ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+        <discardingThreshold>0</discardingThreshold>
+        <queueSize>256</queueSize>
+        <appender-ref ref="REQUEST_INFO_DAY" />
+    </appender>
+    <appender name="ERROR_ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+        <discardingThreshold>0</discardingThreshold>
+        <queueSize>256</queueSize>
+        <appender-ref ref="ERROR" />
+    </appender>
+
+    <!--STDOUT_INFO                     控制台输出 >=INFO-->
+    <!--STDOUT_DEBUG                    控制台输出 >=DEBUG-->
+    <!--FILE			                日志写入到单个文件 all-->
+    <!--INFO_DAY	      INFO_DAY_ASYNC	每天生成一个日志文件 =INFO-->
+    <!--ERROR			  ERROR_ASYNC     每天生成一个日志文件 =ERROR-->
+    <!--REQUEST_INFO_DAY  REQUEST_INFO_DAY_ASYNC -每天生成一个日志文件 =INFO-->
+
+    <!--设置某一个包或具体的某一个类的日志打印级别、以及指定appender addtivity: 是否向上级loger传递打印信息-->
+    <!--对controller的请求日志-->
+    <!--<logger name="action.controller" additivity="false">-->
+        <!--<level value="info" />-->
+        <!--<appender-ref ref="STDOUT_INFO" />-->
+        <!--<appender-ref ref="REQUEST_INFO_DAY_ASYNC" />-->
+        <!--<appender-ref ref="ERROR_ASYNC" />-->
+    <!--</logger>-->
+
+    <!--日志的输出级别由低到高（越来问题越严重）trace->debug->info->warn->error  ALL OFF-->
+    <!-- 根logger  未配置logger的类会使用root-->
+    <root level="INFO">
+        <appender-ref ref="STDOUT_INFO"/>
+        <appender-ref ref="INFO_DAY_ASYNC" />
+        <appender-ref ref="ERROR_ASYNC" />
+    </root>
+
+
+</configuration>

@@ -1,0 +1,433 @@
+FastJson**********************************************************	SerializeWriter：相当于StringBuffer
+	JSONArray：相当于List<Object>
+	JSONObject：相当于Map<String, Object>
+	JSON反序列化没有真正数组，本质类型都是List<Object>***********************************************************
+
+1.使用
+	String jsonStr = JSON.toJSONString(model);
+	VO vo = JSON.parseObject("...", VO.class);
+
+2.常用API	
+=====序列化=======================================================================
+	
+	// Java对象 -----> JSON字符串
+    public static String toJSONString(Object object, SerializerFeature... features);		// JavaBean -----> 带格式的JSON文本	public static final String toJSONString(Object object, boolean prettyFormat);  	//JavaBean -----> JSONObject或者JSONArray。
+	public static final Object toJSON(Object javaObject); 
+
+    // Java对象 -----> JSON字符串，返回JSON字符串的utf-8 bytes
+    public static byte[] toJSONBytes(Object object, SerializerFeature... features);
+
+    // Java对象 -----> JSON字符串，写入到Writer中
+    public static void writeJSONString(Writer writer, 
+                                       Object object, 
+                                       SerializerFeature... features);
+
+    // Java对象 -----> JSON字符串，按UTF-8编码写入到OutputStream中
+    public static final int writeJSONString(OutputStream os, // 
+                                            Object object, // 
+                                            SerializerFeature... features);	public static final int writeJSONString(OutputStream os, //
+                                             Charset charset, //  
+                                             Object object, // 
+                                             SerializerFeature... features);
+											
+    --------------------------------------------------------------------								
+		
+		Demo:			Model model = ...; 			String jsonStr = JSON.toJSONString(model);			
+		POJO to json bytes
+			byte[] jsonBytes = JSON.toJSONBytes(model);
+		
+		write POJO as json string to OutputStream
+			Model model = ...; 
+			OutputStream os;
+			JSON.writeJSONString(os, model);
+			
+		write POJO as json string to Writer
+			Model model = ...; 
+			Writer writer = ...;
+			JSON.writeJSONString(writer, model);			
+	
+====反序列化==================================================================
+	
+	// JSON字符串  -------->  JavaBean
+    public static <T> T parseObject(String jsonStr, 
+                                    Class<T> clazz, 
+                                    Feature... features);	// JSON文本  -------->  JSONObject或者JSONArray 
+	public static final Object parse(String text); 	// JSON文本  -------->  JSONArray	public static final JSONArray parseArray(String text);  	//JSON文本  -------->  JavaBean集合	public static final <T> List<T> parseArray(String text, Class<T> clazz);  	// JSON字符串  -------->  JSONObject
+    public static JSONObject parseObject(String text);
+
+    // JSON字节  -------->  JavaBean
+    public static <T> T parseObject(byte[] jsonBytes,  // UTF-8格式的JSON字符串
+                                    Class<T> clazz, 
+                                    Feature... features);
+
+    //JSON字符串  -------->  泛型类型的JavaBean
+    public static <T> T parseObject(String text, 
+                                    TypeReference<T> type, 
+                                    Feature... features);	public static <T> T parseObject(InputStream is, //
+                                    Type type, //
+                                    Feature... features) throws IOException;
+
+    public static <T> T parseObject(InputStream is, //
+                                    Charset charset, //
+                                    Type type, //
+                                    Feature... features) throws IOException;		//JSON文本  -------->  JavaBean集合	public static final <T> List<T> parseArray(String text, Class<T> clazz);  
+	
+	----------------------------------------------------
+	Demo:
+		parse POJO
+		Model model = JSON.parseObject(jsonStr, Model.class);
+		
+		parse Tree
+			JSONObject jsonObj = JSON.parseObject(jsonStr);
+		
+		parse POJO Generic
+			Type type = new TypeReference<List<Model>>() {}.getType(); 
+			List<Model> list = JSON.parseObject(jsonStr, type);
+			
+=====空值处理========================================================通常情况下如果一个 字段的属性值为null时序列化或者反序列化的时候是不会将该字段输出的；序列化：	JSON.toJSONString(Object object, SerializerFeature... features)	QuoteFieldNames———-输出key时是否使用双引号,默认为true 
+	WriteMapNullValue——–是否输出值为null的字段,默认为false 
+	WriteNullNumberAsZero—-数值字段如果为null,输出为0,而非null 
+	WriteNullListAsEmpty—–List字段如果为null,输出为[],而非null 
+	WriteNullStringAsEmpty—字符类型字段如果为null,输出为”“,而非null 
+	WriteNullBooleanAsFalse–Boolean字段如果为null,输出为false,而非null	=======显示类名==========================================================				@JSONType(typeName = "dog")		SerializerFeature.WriteClassName
+	
+======处理日期==========================================================
+	//单独对 Date 处理
+	JSON.toJSONStringWithDateFormat(date, "yyyy-MM-dd HH:mm:ss.SSS");
+	//使用ISO-8601日期格式
+	JSON.toJSONString(obj, SerializerFeature.UseISO8601DateFormat);
+	
+	//全局修改日期格式
+	JSON.DEFFAULT_DATE_FORMAT = "yyyy-MM-dd";
+	JSON.toJSONString(obj, SerializerFeature.WriteDateUseDateFormat);
+	
+	反序列化能够自动识别如下日期格式：
+		ISO-8601日期格式
+		yyyy-MM-dd
+		yyyy-MM-dd HH:mm:ss
+		yyyy-MM-dd HH:mm:ss.SSS
+		毫秒数字
+		毫秒数字字符串
+		.NET JSON日期格式
+		new Date(198293238)	//使用 SerializeConfig	private static SerializeConfig mapping = new SerializeConfig();	static { 
+		mapping.put(Date.class, new SimpleDateFormatSerializer("yyyy-MM-dd HH:mm:ss"));	}
+	
+	
+=========循环引用==============================================================================
+	*fastjson支持循环引用，并且是缺省打开的
+		全局配置关闭
+			JSON.DEFAULT_GENERATE_FEATURE |= SerializerFeature.DisableCircularReferenceDetect.getMask();
+		非全局关闭
+			JSON.toJSONString(obj, SerializerFeature.DisableCircularReferenceDetect);
+			VO vo = JSON.parseObject("...", VO.class, Feature.DisableCircularReferenceDetect)
+		语法
+				语法			描述
+			{"$ref":"$"}	引用根对象
+			{"$ref":"@"}	引用自己
+			{"$ref":".."}	引用父对象
+			{"$ref":"../.."}	引用父对象的父对象
+			{"$ref":"$.members[0].reportTo"}	基于路径的引用
+	
+	
+2.定制序列化
+
+=================================================================
+@JSONField
+	
+		public @interface JSONField {
+			// 配置序列化和反序列化的顺序 缺省fastjson序列化一个java bean，是根据fieldName的字母序进行序列化的
+			int ordinal() default 0;
+
+			 // 指定字段的名称
+			String name() default "";
+
+			// 指定字段的格式，对日期格式有用
+			String format() default "";
+
+			// 是否序列化
+			boolean serialize() default true;
+
+			// 是否反序列化
+			boolean deserialize() default true;			//字段别名			String[] alternateNames() default {};			//控制序列化的一些规则 serialzeFeatures=SerializerFeature.WriteMapNullValue 			//显示类名SerializerFeature.WriteClassName(@JSONType(typename=""))			SerializerFeature[] serialzeFeatures() default {};			//			Feature[] parseFeatures() default {};			//LabelFilter 用于不同的场景定制序列化 过滤属性			String label() default "";			//当你有一个字段是字符串类型，里面是json格式数据，你希望直接输入，而不是经过转义之后再输出			boolean jsonDirect() default false;						//serializeUsing制定属性的序列化类
+			Class<?> serializeUsing() default Void.class;			//deserializeUsing制定属性的反序列化类			Class<?> deserializeUsing() default Void.class;						//显示对象或集合的根节点			boolean unwrapped() 			
+		}
+		
+	若属性是私有的，必须有set*方法。否则无法反序列化。
+	可以把@JSONField配置在字段或者getter/setter方法上
+	
+	Demo:
+		public class VO {						@JSONField(name="ID",ordinal = 3,alternateNames = {"user", "person"})
+			public int id;			// 配置date序列化和反序列使用yyyyMMdd日期格式			@JSONField(format="yyyyMMdd",ordinal = 2)
+			public Date date;			//使用serialize/deserialize指定字段不序列化
+			@JSONField(serialize=false,deserialize=false,ordinal = 1)
+			public String local;			@JSONField(jsonDirect=true)
+			public String value;
+		}		serializeUsing制定属性的序列化类	在fastjson 1.2.16版本之后，JSONField支持新的定制化配置serializeUsing，	可以单独对某一个类的某个属性定制序列化，比如：	Demo:		public static class Model {
+			@JSONField(serializeUsing = ModelValueSerializer.class)
+			public int value;
+		}
+
+		public static class ModelValueSerializer implements ObjectSerializer {
+			@Override
+			public void write(JSONSerializer serializer, Object object, Object fieldName, Type fieldType,
+							  int features) throws IOException {
+				Integer value = (Integer) object;
+				String text = value + "元";
+				serializer.write(text);
+			}
+		}
+	 
+	
+@JSONType
+		JSONType配置在类上，而不是field或者getter/setter方法上
+			//fastjson缺省时会使用字母序序列化，如果你是希望按照java fields/getters的自然	     顺序 序列化，		//可以配置JSONType.alphabetic
+		@JSONType(alphabetic = false)		public static class B {			public int f2;			public int f1;			public int f0;		}
+				在1.2.14版本之后，fastjson支持通过JSONType配置定制序列化的ObjectSerializer	@JSONType(serializer=ModelSerializer.class)	public static class Model {		public int id;	}	public static class ModelSerializer implements ObjectSerializer {		@Override		public void write(JSONSerializer serializer, Object object, Object fieldName, Type fieldType,						  int features) throws IOException {			Model model = (Model) object;			SerializeWriter out = serializer.getWriter();			out.writeFieldValue('{', "ID", model.id);			out.write('}');		}			}		Model model = new Model();	model.id = 1001;		String text = JSON.toJSONString(model);	Assert.assertEquals("{\"ID\":1001}", text);		
+	
+SerializeFilter定制序列化
+	
+		SerializeFilter filter = ...; // 可以是下面6个SerializeFilter的任意一种。
+		JSON.toJSONString(obj, filter);
+	
+		1.PropertyPreFilter 根据PropertyName 判断是否序列化						 public interface PropertyPreFilter extends SerializeFilter {
+				  boolean apply(JSONSerializer serializer, Object object, String name);
+			  }
+		
+		2.PropertyFilter 根据PropertyName和PropertyValue来 判断是否序列化			  public interface PropertyFilter extends SerializeFilter {
+				  boolean apply(Object object, String propertyName, Object propertyValue);
+			  }				可以通过扩展实现根据object或者属性名称或者属性值进行判断是否需要序列化。例如：			PropertyFilter filter = new PropertyFilter() {
+				public boolean apply(Object source, String name, Object value) {
+					if ("id".equals(name)) {
+						int id = ((Integer) value).intValue();
+						return id >= 100;
+					}
+					return false;
+				}
+			};
+			JSON.toJSONString(obj, filter); // 序列化的时候传入filter
+		
+		3.NameFilter 修改Key，如果需要修改Key,process返回值则可				public interface NameFilter extends SerializeFilter {
+				String process(Object object, String propertyName, Object propertyValue);
+			}			fastjson内置一个PascalNameFilter，用于输出将首字符大写的Pascal风格。 例如			String jsonStr = JSON.toJSONString(obj, new PascalNameFilter())
+		
+		4.ValueFilter 修改Value						public interface ValueFilter extends SerializeFilter {
+				  Object process(Object object, String propertyName, Object propertyValue);
+			  }
+		
+		5.BeforeFilter 序列化时在最前添加内容			  public abstract class BeforeFilter implements SerializeFilter {
+				  protected final void writeKeyValue(String key, Object value) { ... }
+				  // 需要实现的抽象方法，在实现中调用writeKeyValue添加内容
+				  public abstract void writeBefore(Object object);
+			  }
+		
+		6.AfterFilter 序列化时在最后添加内容
+	
+			public abstract class AfterFilter implements SerializeFilter {
+				  protected final void writeKeyValue(String key, Object value) { ... }
+				  // 需要实现的抽象方法，在实现中调用writeKeyValue添加内容
+				  public abstract void writeAfter(Object object);
+			  }
+	
+	public class SerializeConfig {		public void addFilter(Class<?> clazz, SerializeFilter filter);	}
+	
+3.定制反序列化
+	ParseProcess:		ExtraProcessor 用于处理多余的字段
+		ExtraTypeProvider 用于处理多余字段时提供类型信息		public static class VO {
+		private int id;
+		private Map<String, Object> attributes = new HashMap<String, Object>();	}			ExtraProcessor processor = new ExtraProcessor() {
+			public void processExtra(Object object, String key, Object value) {
+				VO vo = (VO) object;
+				vo.getAttributes().put(key, value);
+			}
+		};	//json多了name	VO vo = JSON.parseObject("{\"id\":123,\"name\":\"abc\"}", VO.class, processor);
+	Assert.assertEquals(123, vo.getId());
+	Assert.assertEquals("abc", vo.getAttributes().get("name"));		class MyExtraProcessor implements ExtraProcessor, ExtraTypeProvider {
+		public void processExtra(Object object, String key, Object value) {
+			VO vo = (VO) object;
+			vo.getAttributes().put(key, value);
+		}
+		public Type getExtraType(Object object, String key) {
+			if ("value".equals(key)) {
+				return int.class;
+			}
+			return null;
+		}
+	}	ExtraProcessor processor = new MyExtraProcessor();
+	VO vo = JSON.parseObject("{\"id\":123,\"value\":\"123456\"}", VO.class, processor);
+	Assert.assertEquals(123, vo.getId());	// value本应该是字符串类型的，通过getExtraType的处理变成Integer类型了。
+	Assert.assertEquals(123456, vo.getAttributes().get("value")); 
+	
+	
+	
+4.FastJson 提供了Spring MVC HttpMessageConverter的实现
+	
+	FastJsonHttpMessageConverter for Spring MVC Below 4.2
+	FastJsonHttpMessageConverter4 for Spring MVC 4.2+
+	
+	可用于在Spring Controller中使用FastJson进行数据的Serialize and Deserialize
+	
+	FastJsonConfig配置:
+		<bean id="fastJsonConfig" class="com.alibaba.fastjson.support.config.FastJsonConfig">
+			<!-- Default charset -->
+			<property name="charset" value="UTF-8" />
+			<!-- Default dateFormat -->
+			<property name="dateFormat" value="yyyy-MM-dd HH:mm:ss" />
+			<!-- Feature -->
+			<property name="features">
+				<list>
+					<value>Your feature</value>
+				</list>
+			</property>
+			<!-- SerializerFeature -->
+			<property name="serializerFeatures">
+				<list>
+					<value>Your serializer feature</value>
+				</list>
+			</property>
+			<!-- Global SerializeFilter -->
+			<property name="serializeFilters">
+				<list>
+					<ref bean="Your serializer filter"/>    
+				</list>
+			</property>
+			<!-- Class Level SerializeFilter -->
+			<property name="classSerializeFilters">
+				<map>
+					<entry key="Your filter class" value-ref="Your serializer filter"/>
+				</map>
+			</property>
+		</bean>
+		
+	HttpMessageConverter配置:
+		<mvc:annotation-driven>
+			<mvc:message-converters>
+				<bean class="com.alibaba.fastjson.support.spring.FastJsonHttpMessageConverter">
+					<!-- MediaTypes -->
+					<property name="supportedMediaTypes">
+						<list>
+							<value>application/json</value>
+						</list>
+					</property>
+					<!-- FastJsonConfig -->
+					<property name="fastJsonConfig" ref="fastJsonConfig" />
+				</bean>
+			</mvc:message-converters>
+		</mvc:annotation-driven>
+
+		<mvc:default-servlet-handler />
+	
+	
+5.IE 6不支持JSON带中文字符串，要怎么处理？
+	fastjson提供了BrowserCompatible这个配置，打开之后，所有的中文都会序列化为\uXXXX这种格式，
+	字节数会多一些，但是能兼容IE 6
+	String  jsonString = JSON.toJSONString(obj, SerializerFeature.BrowserCompatible);
+	
+	
+	
+	
+6.处理超大对象和超大JSON文本
+=====Stream api========================
+			(1)	超大JSON数组序列化
+		如果你的JSON格式是一个巨大的JSON数组，有很多元素，则先调用startArray，然后挨个写入对象，然后调用endArray。
+		  JSONWriter writer = new JSONWriter(new FileWriter("/tmp/huge.json"));
+		  writer.startArray();
+		  for (int i = 0; i < 1000 * 1000; ++i) {
+				writer.writeValue(new VO());
+		  }
+		  writer.endArray();
+		  writer.close();	(2) 超大JSON对象序列化		如果你的JSON格式是一个巨大的JSONObject，有很多Key/Value对，则先调用startObject，然后挨个写入Key和Value，然后调用endObject。		  JSONWriter writer = new JSONWriter(new FileWriter("/tmp/huge.json"));
+		  writer.startObject();
+		  for (int i = 0; i < 1000 * 1000; ++i) {
+				writer.writeKey("x" + i);
+				writer.writeValue(new VO());
+		  }
+		  writer.endObject();
+		  writer.close();	(3) 反序列化		  JSONReader reader = new JSONReader(new FileReader("/tmp/huge.json"));
+		  reader.startArray();
+		  while(reader.hasNext()) {
+				VO vo = reader.readObject(VO.class);
+				// handle vo ...
+		  }
+		  reader.endArray();
+		  reader.close();		  JSONReader reader = new JSONReader(new FileReader("/tmp/huge.json"));
+		  reader.startObject();
+		  while(reader.hasNext()) {
+				String key = reader.readString();
+				VO vo = reader.readObject(VO.class);
+				// handle vo ...
+		  }
+		  reader.endObject();
+		  reader.close();		
+	
+7.对象查询语言JSONPath
+		public class JSONPath {          
+			 //  求值，静态方法
+			 public static Object eval(Object rootObject, String path);
+
+			 // 计算Size，Map非空元素个数，对象非空元素个数，Collection的Size，数组的长度。其他无法求值返回-1
+			 public static int size(Object rootObject, String path);
+
+			 // 是否包含，path中是否存在对象
+			 public static boolean contains(Object rootObject, String path) { }
+
+			 // 是否包含，path中是否存在指定值，如果是集合或者数组，在集合中查找value是否存在
+			 public static boolean containsValue(Object rootObject, String path, Object value) { }
+
+			 // 修改制定路径的值，如果修改成功，返回true，否则返回false
+			 public static boolean set(Object rootObject, String path, Object value) {}
+
+			 // 在数组或者集合中添加元素
+			 public static boolean array_add(Object rootObject, String path, Object... values);
+		}8.BeanToArray	普通模式下，JavaBean映射成json object，BeanToArray模式映射为json array。	
+	class Mode {
+	   public int id;
+	   public int name;
+	}
+
+	Model model = new Model();
+	model.id = 1001;
+	model.name = "gaotie";
+
+	// {"id":1001,"name":"gaotie"}
+	String text_normal = JSON.toJSONString(model); 
+
+	// [1001,"gaotie"]
+	String text_beanToArray = JSON.toJSONString(model, SerializerFeature.BeanToArray); 
+
+	// support beanToArray & normal mode
+	JSON.parseObject(text_beanToArray, Feature.SupportArrayToBean);		BeanToArray模式下，少了Key的输出，节省了空间，json字符串较小，性能也会更好。	
+	BeanToArray可以局部使用，比如：		
+	class Company {
+		 public int code;
+		 public List<Department> departments = new ArrayList<Department>();
+	}
+
+	@JSONType(serialzeFeatures=SerializerFeature.BeanToArray, parseFeatures=Feature.SupportArrayToBean)
+	class Department {
+		 public int id;
+		 public Stirng name;
+		 public Department() {}
+		 public Department(int id, String name) {this.id = id; this.name = name;}
+	}
+
+
+	Company company = new Company();
+	company.code = 100;
+	company.departments.add(new Department(1001, "Sales"));
+	company.departments.add(new Department(1002, "Financial"));
+
+	// {"code":10,"departments":[[1001,"Sales"],[1002,"Financial"]]}
+	String text = JSON.toJSONString(commpany); 	也可以这样写：		class Company {
+			 public int code;
+
+			 @JSONField(serialzeFeatures=SerializerFeature.BeanToArray, parseFeatures=Feature.SupportArrayToBean)
+			 public List<Department> departments = new ArrayList<Department>();
+		}		9. 反序列化不使用BigDecimal	fastjson缺省反序列化带小数点的数值类型为BigDecimal，因为在真实的业务中，	float/double表示的二进制精度和直观理解的十进制精度不太一样。但还是存在使用float/double而不是BigDecimal的场景。
+	
+	1. 全局关闭		JSON.DEFAULT_PARSER_FEATURE &= ~Feature.UseBigDecimal.getMask();	2. 局部关闭	int disableDecimalFeature = JSON.DEFAULT_PARSER_FEATURE & ~Feature.UseBigDecimal.getMask();	String json = "....";	Class type = JSONObject.class;	JSON.parseObject(json, type, disableDecimalFeature);	10.自定义序列化	implements JSONSerializable		@Override    public void write(JSONSerializer serializer, Object fieldName, Type fieldType,                      int features) throws IOException {        JSONObject json = new JSONObject();        json.put("value", value);        json.put("remark", remark);        serializer.write(json);    }	11.自定义反序列化	fastjson支持注册ObjectDeserializer实现自定义反序列化。	要自定义序列化，首先需要实现一个ObjectDeserializer，然后注册到ParserConfig中。				PropertyProcessable是1.2.35版本开始支持的自定义反序列化接口。	interface PropertyProcessable {		// 返回property的类型，如果返回空，则由parser自行推断。		Type getType(String name);		// 处理属性值		void apply(String name, Object value);	}	public static class VO implements PropertyProcessable {		public int id;		public String name;		public Value value;		public Type getType(String name) {			if ("value".equals(name)) {				return Value.class;			}			return null;		}		public void apply(String name, Object value) {			if ("vo_id".equals(name)) {				this.id = ((Integer) value).intValue();			} else if ("vo_name".equals(name)) {				this.name = (String) value;			} else if ("value".equals(name)) {				this.value = (Value) value;			}		}	}	public static class Value {	}	///////////// 使用	VO vo = JSON.parseObject("{\"vo_id\":123,\"vo_name\":\"abc\",\"value\":{}}", VO.class);	assertEquals(123, vo.id);	assertEquals("abc", vo.name);	assertNotNull(vo.value);
+	
+	
+	
+	
+	
+	
